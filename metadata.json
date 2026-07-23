@@ -1,0 +1,6 @@
+{
+  "name": "Maintenance Planner & Tracker",
+  "description": "ระบบจัดการ วางแผนงานซ่อมบำรุง ติดตั้งอุปกรณ์ และสรุปรายงานประจำเดือน",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

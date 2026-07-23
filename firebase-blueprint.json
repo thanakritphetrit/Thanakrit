@@ -1,0 +1,129 @@
+{
+  "entities": {
+    "MaintenanceTask": {
+      "title": "Maintenance Task",
+      "description": "A scheduled or corrective maintenance task",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["Preventive", "Corrective", "Predictive", "Calibration", "Other"] },
+        "status": { "type": "string", "enum": ["Pending", "In Progress", "Completed", "Cancelled"] },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High", "Critical"] },
+        "equipment": { "type": "string" },
+        "assignedTo": { "type": "string" },
+        "scheduledDate": { "type": "string" },
+        "completedDate": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["title", "type", "status", "priority", "equipment", "scheduledDate"]
+    },
+    "MonthlyInstallation": {
+      "title": "Monthly Installation",
+      "description": "A newly installed machine or setup in a month",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "equipmentName": { "type": "string" },
+        "serialNumber": { "type": "string" },
+        "model": { "type": "string" },
+        "location": { "type": "string" },
+        "installDate": { "type": "string" },
+        "technician": { "type": "string" },
+        "warrantyPeriodMonths": { "type": "number" },
+        "status": { "type": "string", "enum": ["Operational", "Pending Testing", "Needs Maintenance"] },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["equipmentName", "serialNumber", "location", "installDate", "status"]
+    },
+    "LoginHistory": {
+      "title": "Login History",
+      "description": "A record of user Google sign-in details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "userAgent": { "type": "string" }
+      },
+      "required": ["userId", "email", "timestamp"]
+    },
+    "UserRole": {
+      "title": "User Role",
+      "description": "Access privileges of user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "technician", "viewer"] },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "email", "role"]
+    },
+    "CheckInLog": {
+      "title": "Check In Log",
+      "description": "GPS Location Check-in/Check-out record for maintenance tasks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "taskId": { "type": "string" },
+        "taskTitle": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "checkInTime": { "type": "string" },
+        "checkInLat": { "type": "number" },
+        "checkInLng": { "type": "number" },
+        "checkInAccuracy": { "type": "number" },
+        "checkInAddress": { "type": "string" },
+        "checkInPhoto": { "type": "string" },
+        "checkInNotes": { "type": "string" },
+        "inGeofenceCheckIn": { "type": "boolean" },
+        "distanceFromTargetCheckIn": { "type": "number" },
+        "checkOutTime": { "type": "string" },
+        "checkOutLat": { "type": "number" },
+        "checkOutLng": { "type": "number" },
+        "checkOutAccuracy": { "type": "number" },
+        "checkOutAddress": { "type": "string" },
+        "checkOutPhoto": { "type": "string" },
+        "checkOutNotes": { "type": "string" },
+        "inGeofenceCheckOut": { "type": "boolean" },
+        "workDurationMinutes": { "type": "number" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["taskId", "userId", "checkInTime", "status"]
+    }
+  },
+  "firestore": {
+    "/maintenance_tasks/{taskId}": {
+      "schema": "MaintenanceTask",
+      "description": "Collection of all maintenance tasks"
+    },
+    "/monthly_installations/{installationId}": {
+      "schema": "MonthlyInstallation",
+      "description": "Collection of all monthly equipment installations"
+    },
+    "/login_history/{historyId}": {
+      "schema": "LoginHistory",
+      "description": "Collection of user Google sign-in logs"
+    },
+    "/user_roles/{roleId}": {
+      "schema": "UserRole",
+      "description": "User access permissions"
+    },
+    "/check_in_logs/{logId}": {
+      "schema": "CheckInLog",
+      "description": "Collection of GPS check in/out logs"
+    }
+  }
+}

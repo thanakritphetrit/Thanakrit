@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "leaflet/dist/leaflet.css";
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Noto Sans Thai", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", "Noto Sans Thai", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+  }
+  
+  /* Hide interactive non-printing components */
+  .no-print, 
+  nav, 
+  button, 
+  select,
+  footer {
+    display: none !important;
+  }
+
+  /* Force print block to display */
+  .print\:block {
+    display: block !important;
+  }
+
+  /* Optimize print margins and layout */
+  @page {
+    size: A4;
+    margin: 12mm 15mm 12mm 15mm;
+  }
+
+  /* Prevent page breaks inside table rows */
+  tr, img, h2, h3 {
+    page-break-inside: avoid;
+  }
+}
