@@ -647,21 +647,21 @@ export default function MaintenanceManager({
   return (
     <div className="space-y-4">
       {/* Search and Filters Toolbar */}
-      <div className="bg-white p-4 sm:p-4.5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row gap-3.5 items-center justify-between no-print">
-        <div className="relative w-full md:w-80">
+      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between no-print">
+        <div className="relative w-full xl:w-64 shrink-0">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="ค้นหา ชื่องาน, อุปกรณ์, ช่างผู้รับผิดชอบ..."
+            placeholder="ค้นหา ชื่องาน, อุปกรณ์, ช่าง..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full text-xs bg-slate-50/80 border border-slate-200 rounded-xl pl-9.5 pr-4 py-2.5 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-800 placeholder:text-slate-400"
+            className="w-full h-10 text-xs bg-slate-50/80 border border-slate-200 rounded-xl pl-9.5 pr-3 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-800 placeholder:text-slate-400"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-end">
-          <div className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100/70 px-3 py-2 rounded-xl border border-slate-200/80 transition-all">
-            <Filter size={13} className="text-slate-400" />
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 xl:pb-0 shrink-0">
+          <div className="h-10 flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100/70 px-2.5 rounded-xl border border-slate-200/80 transition-all shrink-0">
+            <Filter size={13} className="text-slate-400 shrink-0" />
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
@@ -676,7 +676,7 @@ export default function MaintenanceManager({
             </select>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100/70 px-3 py-2 rounded-xl border border-slate-200/80 transition-all">
+          <div className="h-10 flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100/70 px-2.5 rounded-xl border border-slate-200/80 transition-all shrink-0">
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
@@ -690,7 +690,7 @@ export default function MaintenanceManager({
             </select>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100/70 px-3 py-2 rounded-xl border border-slate-200/80 transition-all">
+          <div className="h-10 flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100/70 px-2.5 rounded-xl border border-slate-200/80 transition-all shrink-0">
             <select
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
@@ -706,7 +706,7 @@ export default function MaintenanceManager({
 
           <button
             onClick={() => exportTasksToExcel(filteredTasks, `รายการงานซ่อมบำรุง_${new Date().toISOString().slice(0,10)}`)}
-            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shrink-0 shadow-xs hover:shadow-md active:scale-95"
+            className="h-10 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 rounded-xl transition-all cursor-pointer shrink-0 shadow-xs hover:shadow-md active:scale-95 whitespace-nowrap"
             title="ส่งออกรายการงานซ่อมบำรุงเป็นไฟล์ Excel (.xlsx)"
           >
             <FileSpreadsheet size={15} />
@@ -716,7 +716,7 @@ export default function MaintenanceManager({
           {userRole !== 'viewer' && (
             <button
               onClick={handleOpenCreate}
-              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shrink-0 shadow-xs hover:shadow-md active:scale-95"
+              className="h-10 flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-3.5 rounded-xl transition-all cursor-pointer shrink-0 shadow-xs hover:shadow-md active:scale-95 whitespace-nowrap"
             >
               <Plus size={15} />
               <span>สร้างใบงานซ่อมบำรุง</span>
@@ -816,7 +816,7 @@ export default function MaintenanceManager({
                                   title={`สถานที่เช็คอิน: ${task.checkInLocation.address || 'ไม่ระบุสถานที่'}`}
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                  เช็คอิน: {new Date(task.checkInLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
+                                  เช็คอิน: {new Date(task.checkInLocation.timestamp).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' })} {new Date(task.checkInLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
                                   {task.checkInLocation.inGeofence ? (
                                     <span className="text-emerald-600 font-bold ml-0.5">✓ ใน Geofence</span>
                                   ) : (
@@ -828,7 +828,7 @@ export default function MaintenanceManager({
                                   title={`สถานที่เช็คเอาท์: ${task.checkOutLocation.address || 'ไม่ระบุสถานที่'}`}
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                                  เช็คเอาท์: {new Date(task.checkOutLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
+                                  เช็คเอาท์: {new Date(task.checkOutLocation.timestamp).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' })} {new Date(task.checkOutLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
                                   {task.checkOutLocation.inGeofence ? (
                                     <span className="text-indigo-600 font-bold ml-0.5">✓ ใน Geofence</span>
                                   ) : (
@@ -844,7 +844,7 @@ export default function MaintenanceManager({
                                     title={`สถานที่เช็คอิน: ${task.checkInLocation.address || 'ไม่ระบุสถานที่'}`}
                                   >
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    เช็คอิน: {new Date(task.checkInLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
+                                    เช็คอิน: {new Date(task.checkInLocation.timestamp).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' })} {new Date(task.checkInLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
                                     {task.checkInLocation.inGeofence ? (
                                       <span className="text-emerald-600 font-bold ml-0.5">✓ ใน Geofence</span>
                                     ) : (
@@ -859,7 +859,7 @@ export default function MaintenanceManager({
                                     title={`สถานที่เช็คเอาท์: ${task.checkOutLocation.address || 'ไม่ระบุสถานที่'}`}
                                   >
                                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                                    เช็คเอาท์: {new Date(task.checkOutLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
+                                    เช็คเอาท์: {new Date(task.checkOutLocation.timestamp).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' })} {new Date(task.checkOutLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
                                     {task.checkOutLocation.inGeofence ? (
                                       <span className="text-indigo-600 font-bold ml-0.5">✓ ใน Geofence</span>
                                     ) : (
@@ -905,10 +905,10 @@ export default function MaintenanceManager({
                         )}
                       </td>
                       <td className="py-4 px-4 align-top pt-4.5 whitespace-nowrap">
-                        <div className="flex flex-col items-start gap-1.5">
+                        <div className="flex flex-col items-start gap-1.5 w-[140px]">
                           {/* Task Status Pill / Select */}
                           {userRole === 'admin' ? (
-                            <div className="relative inline-flex items-center" title="คลิกเพื่อเปลี่ยนสถานะงานซ่อมบำรุง">
+                            <div className="relative inline-flex items-center w-full" title="คลิกเพื่อเปลี่ยนสถานะงานซ่อมบำรุง">
                               <select
                                 value={task.status}
                                 onChange={async (e) => {
@@ -922,7 +922,7 @@ export default function MaintenanceManager({
                                     console.error("Error updating status:", error);
                                   }
                                 }}
-                                className={`whitespace-nowrap text-[11px] font-bold px-3 py-1.5 pr-7 rounded-xl border cursor-pointer appearance-none outline-none shadow-2xs transition-all active:scale-95 ${
+                                className={`w-full whitespace-nowrap text-[11px] font-bold px-2.5 py-1.5 pr-6 rounded-xl border cursor-pointer appearance-none outline-none shadow-2xs transition-all active:scale-95 ${
                                   task.status === 'Completed'
                                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300/80 hover:bg-emerald-100/80 focus:ring-2 focus:ring-emerald-500/20'
                                     : task.status === 'In Progress'
@@ -940,11 +940,11 @@ export default function MaintenanceManager({
                               <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 text-slate-600" />
                             </div>
                           ) : (
-                            <div>{getStatusBadge(task.status)}</div>
+                            <div className="w-full">{getStatusBadge(task.status)}</div>
                           )}
 
                           {/* Approval Status Toggle Button for Admin */}
-                          <div>
+                          <div className="w-full">
                             {userRole === 'admin' ? (
                               <button
                                 onClick={async () => {
@@ -959,27 +959,29 @@ export default function MaintenanceManager({
                                     console.error("Error toggling approval:", error);
                                   }
                                 }}
-                                className={`inline-flex items-center whitespace-nowrap gap-1.5 text-[10.5px] font-bold px-2.5 py-1 rounded-xl cursor-pointer transition-all hover:shadow-2xs active:scale-95 border ${
+                                className={`w-full flex items-center justify-between whitespace-nowrap text-[10.5px] font-bold px-2.5 py-1 rounded-xl cursor-pointer transition-all hover:shadow-2xs active:scale-95 border ${
                                   task.isApproved
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 hover:bg-emerald-100/80'
                                     : 'bg-amber-50 text-amber-800 border-amber-200/80 hover:bg-amber-100/80'
                                 }`}
                                 title="คลิกเพื่อสลับสถานะอนุมัติ / รออนุมัติ"
                               >
-                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${task.isApproved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></span>
-                                <span>{task.isApproved ? 'อนุมัติแล้ว ✓' : 'รออนุมัติ ⏳'}</span>
+                                <span className="flex items-center gap-1.5">
+                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${task.isApproved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></span>
+                                  <span>{task.isApproved ? 'อนุมัติแล้ว ✓' : 'รออนุมัติ ⏳'}</span>
+                                </span>
                                 <ChevronDown size={10} className="text-slate-400 opacity-60 ml-0.5" />
                               </button>
                             ) : task.isApproved ? (
                               <span 
-                                className="inline-flex items-center whitespace-nowrap gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[9.5px] font-bold px-2.5 py-0.5 rounded-xl"
+                                className="w-full flex items-center justify-center whitespace-nowrap gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[9.5px] font-bold px-2.5 py-0.5 rounded-xl"
                                 title={`อนุมัติโดย: ${task.approvedBy || ''} เมื่อ ${task.approvedAt ? new Date(task.approvedAt).toLocaleDateString('th-TH') : ''}`}
                               >
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                 อนุมัติแล้ว
                               </span>
                             ) : (
-                              <span className="inline-flex items-center whitespace-nowrap gap-1 bg-amber-50 text-amber-800 border border-amber-200/60 text-[9.5px] font-bold px-2.5 py-0.5 rounded-xl">
+                              <span className="w-full flex items-center justify-center whitespace-nowrap gap-1 bg-amber-50 text-amber-800 border border-amber-200/60 text-[9.5px] font-bold px-2.5 py-0.5 rounded-xl">
                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                                 รออนุมัติ
                               </span>

@@ -1,12 +1,12 @@
 {
   "projectId": "maintenance-1fc38",
-  "appId": "1:455932095947:web:2f7a48893e5445d7921a4e",
-  "apiKey": "AIzaSyASn2vUvXYGt5cv_mKrlQG8jxEsmRh77v8",
+  "appId": "1:719175433860:web:8943313af74ef8c5280cd1",
+  "apiKey": "AIzaSyASeA3tNHpKteE4h1Iaohtv9C0e7UBuys8",
   "authDomain": "maintenance-1fc38.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-a04d0813-df24-4526-bce3-af7e7b5ce315",
+  "firestoreDatabaseId": "ai-studio-maintenanceplann-a04d0813-df24-4526-bce3-af7e7b5ce315",
   "storageBucket": "maintenance-1fc38.firebasestorage.app",
-  "messagingSenderId": "455932095947",
+  "messagingSenderId": "719175433860",
   "measurementId": "",
-  "oAuthClientId": "455932095947-gaf4fmbm7uhholkd87nen7ekuukp1dph.apps.googleusercontent.com",
+  "oAuthClientId": "719175433860-nvnqpsaab7cdfneptodc1q2jcvn89o3n.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }

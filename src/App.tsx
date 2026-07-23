@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, setDoc
 } from 'firebase/firestore';
@@ -30,9 +30,66 @@ export default function App() {
   const [triggerCreateModal, setTriggerCreateModal] = useState(false);
 
   const [user, setUser] = useState<User | null>(null);
+  const [demoUser, setDemoUser] = useState<{
+    uid: string;
+    email: string;
+    displayName: string;
+    photoURL: string;
+    role: AppUserRole;
+  } | null>(null);
   const [userRole, setUserRole] = useState<AppUserRole>('viewer');
   const [usersRoles, setUsersRoles] = useState<UserRole[]>([]);
   const [authLoading, setAuthLoading] = useState(true);
+
+  const activeUser = useMemo<User | null>(() => {
+    if (user) return user;
+    if (!demoUser) return null;
+    return {
+      uid: demoUser.uid,
+      email: demoUser.email,
+      displayName: demoUser.displayName,
+      photoURL: demoUser.photoURL,
+      emailVerified: true,
+      isAnonymous: false,
+      metadata: {},
+      providerData: [],
+      refreshToken: '',
+      tenantId: null,
+      delete: async () => {},
+      getIdToken: async () => '',
+      getIdTokenResult: async () => ({} as any),
+      reload: async () => {},
+      toJSON: () => ({}),
+      phoneNumber: null,
+      providerId: 'demo'
+    } as unknown as User;
+  }, [user, demoUser?.uid, demoUser?.email, demoUser?.displayName, demoUser?.role]);
+
+  const handleDemoLogin = async (email: string, name: string, role: AppUserRole) => {
+    const cleanEmail = email ? email.replace(/[^a-zA-Z0-9]/g, '_') : 'user';
+    const uid = 'demo-' + role + '-' + cleanEmail;
+    setDemoUser({
+      uid,
+      email,
+      displayName: name,
+      photoURL: '',
+      role
+    });
+    setUserRole(role);
+
+    try {
+      await setDoc(doc(db, 'user_roles', uid), {
+        userId: uid,
+        email: email,
+        displayName: name,
+        photoURL: '',
+        role: role,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (err) {
+      console.warn("Could not sync demo user role to Firestore:", err);
+    }
+  };
 
   const handleCreateTaskClick = () => {
     setActiveTab('tasks');
@@ -43,6 +100,9 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        setDemoUser(null);
+      }
       setAuthLoading(false);
     });
     return () => unsubscribe();
@@ -50,6 +110,7 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
+      setDemoUser(null);
       await signOut(auth);
     } catch (e) {
       console.error("Logout error:", e);
@@ -58,7 +119,7 @@ export default function App() {
 
   // Synchronize maintenance tasks in real-time
   useEffect(() => {
-    if (!user) {
+    if (!activeUser) {
       setTasks([]);
       setLoading(false);
       return;
@@ -79,11 +140,11 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [activeUser?.uid]);
 
   // Synchronize monthly installations in real-time
   useEffect(() => {
-    if (!user) {
+    if (!activeUser) {
       setInstallations([]);
       return;
     }
@@ -99,11 +160,11 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [activeUser?.uid]);
 
   // Synchronize login history in real-time
   useEffect(() => {
-    if (!user) {
+    if (!activeUser) {
       setLoginHistory([]);
       return;
     }
@@ -119,11 +180,11 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [activeUser?.uid]);
 
   // Synchronize GPS Check-In logs in real-time
   useEffect(() => {
-    if (!user) {
+    if (!activeUser) {
       setCheckInLogs([]);
       return;
     }
@@ -140,10 +201,15 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [activeUser?.uid]);
 
   // Load user role and manage onboarding
   useEffect(() => {
+    if (demoUser) {
+      setUserRole(demoUser.role);
+      return;
+    }
+
     if (!user) {
       setUserRole('viewer');
       return;
@@ -159,7 +225,7 @@ export default function App() {
         // If user document does not exist, initialize it
         // The owner is thanakritphetrit@gmail.com
         const isOwner = user.email === 'thanakritphetrit@gmail.com';
-        const initialRole: AppUserRole = isOwner ? 'admin' : 'technician';
+        const initialRole: AppUserRole = isOwner ? 'admin' : 'viewer';
         
         try {
           await setDoc(docRef, {
@@ -181,28 +247,29 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid, demoUser?.uid, demoUser?.role]);
 
   // Load all user roles for Admin Panel
   useEffect(() => {
-    if (!user || userRole !== 'admin') {
+    if (!activeUser || userRole !== 'admin') {
       setUsersRoles([]);
       return;
     }
 
-    const q = query(collection(db, 'user_roles'), orderBy('updatedAt', 'desc'));
+    const q = collection(db, 'user_roles');
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const roles: UserRole[] = [];
       snapshot.forEach((doc) => {
         roles.push({ id: doc.id, ...doc.data() } as UserRole);
       });
+      roles.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
       setUsersRoles(roles);
     }, (error) => {
       console.error("Firestore loading users roles error:", error);
     });
 
     return () => unsubscribe();
-  }, [user, userRole]);
+  }, [activeUser?.uid, userRole]);
 
   // Handler: Add Task
   const handleAddTask = async (taskData: Omit<MaintenanceTask, 'id' | 'createdAt'>) => {
@@ -514,8 +581,8 @@ export default function App() {
     );
   }
 
-  if (!user) {
-    return <Login />;
+  if (!activeUser) {
+    return <Login onDemoLogin={handleDemoLogin} />;
   }
 
   return (
@@ -525,7 +592,7 @@ export default function App() {
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         onCreateTaskClick={userRole !== 'viewer' ? handleCreateTaskClick : undefined} 
-        user={user}
+        user={activeUser}
         userRole={userRole}
         onLogout={handleLogout}
       />
@@ -559,7 +626,7 @@ export default function App() {
               <MaintenanceManager 
                 tasks={tasks}
                 userRole={userRole}
-                currentUserEmail={user.email || ''}
+                currentUserEmail={activeUser?.email || ''}
                 onAddTask={handleAddTask}
                 onUpdateTask={handleUpdateTask}
                 onDeleteTask={handleDeleteTask}
@@ -573,7 +640,7 @@ export default function App() {
               <GPSCheckInManager
                 tasks={tasks}
                 checkInLogs={checkInLogs}
-                user={user}
+                user={activeUser}
                 userRole={userRole}
                 onCheckIn={handleCheckIn}
                 onCheckOut={handleCheckOut}
@@ -595,7 +662,7 @@ export default function App() {
               <MonthlyInstallations 
                 installations={installations}
                 userRole={userRole}
-                currentUserEmail={user.email || ''}
+                currentUserEmail={activeUser?.email || ''}
                 onAddInstallation={handleAddInstallation}
                 onUpdateInstallation={handleUpdateInstallation}
                 onDeleteInstallation={handleDeleteInstallation}
@@ -607,7 +674,7 @@ export default function App() {
             )}
 
             {activeTab === 'admin_panel' && userRole === 'admin' && (
-              <AdminPanel usersRoles={usersRoles} currentUserEmail={user.email || ''} />
+              <AdminPanel usersRoles={usersRoles} currentUserEmail={activeUser?.email || ''} />
             )}
           </>
         )}
