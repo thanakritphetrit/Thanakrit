@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { LoginHistory } from '../types';
-import { History, Search, ArrowUpDown, Calendar, Monitor, Mail, User, ShieldCheck, Cpu } from 'lucide-react';
+import { History, Search, ArrowUpDown, Calendar, Monitor, Mail, User, ShieldCheck, Cpu, ChevronDown } from 'lucide-react';
 
 interface LoginHistoryManagerProps {
   loginHistory: LoginHistory[];
@@ -10,6 +10,7 @@ export default function LoginHistoryManager({ loginHistory }: LoginHistoryManage
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [visibleCount, setVisibleCount] = useState(15);
+  const [isTableExpanded, setIsTableExpanded] = useState(true);
 
   // Parse User Agent into readable OS & Browser
   const parseUserAgent = (ua: string): { os: string; browser: string } => {
@@ -146,52 +147,138 @@ export default function LoginHistoryManager({ loginHistory }: LoginHistoryManage
       {/* Main Table and Filter section */}
       <div className="bg-white rounded-2xl border border-slate-200/60 shadow-xs overflow-hidden">
         {/* Controls header */}
-        <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           {/* Search bar */}
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
             <input
               type="text"
               placeholder="ค้นหาชื่อ, อีเมล, อุปกรณ์, หรือเบราว์เซอร์..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full text-xs pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold text-slate-700 placeholder-slate-400"
+              className="w-full text-xs pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold text-slate-700 placeholder-slate-400"
             />
           </div>
 
           {/* Sort & Actions */}
-          <div className="flex items-center gap-3 self-end md:self-auto">
+          <div className="flex items-center gap-2 self-end md:self-auto">
             <button
               onClick={toggleSortOrder}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-pointer transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-pointer transition-colors"
               title="เรียงลำดับเวลา"
             >
-              <ArrowUpDown size={14} className="text-slate-500" />
+              <ArrowUpDown size={13} className="text-slate-500" />
               <span>เรียงตามเวลา: {sortOrder === 'desc' ? 'ล่าสุดก่อน' : 'เก่าสุดก่อน'}</span>
+            </button>
+            <button
+              onClick={() => setIsTableExpanded(!isTableExpanded)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-pointer transition-colors shadow-2xs"
+              title={isTableExpanded ? "ย่อตารางซ่อน" : "ขยายแสดงตาราง"}
+            >
+              <span>{isTableExpanded ? 'ย่อตารางซ่อน' : 'ขยายแสดงตาราง'}</span>
+              <ChevronDown size={14} className={`transition-transform duration-200 text-slate-500 ${isTableExpanded ? 'rotate-180' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* Table representation */}
-        <div className="overflow-x-auto">
-          {sortedHistory.length > 0 ? (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/70 border-b border-slate-200/60 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
-                  <th className="py-3 px-6">ผู้ใช้งาน (User Profile)</th>
-                  <th className="py-3 px-6">วัน-เวลา เข้าสู่ระบบ (Log Timestamp)</th>
-                  <th className="py-3 px-6">ระบบและเบราว์เซอร์ (OS & Browser)</th>
-                  <th className="py-3 px-6">รหัสบัญชี (User UID)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs text-slate-700 font-semibold">
-                {sortedHistory.slice(0, visibleCount).map((item) => {
+        {/* Collapsible Content */}
+        {isTableExpanded && (
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              {sortedHistory.length > 0 ? (
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200/60 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
+                      <th className="py-2.5 px-4">ผู้ใช้งาน (User Profile)</th>
+                      <th className="py-2.5 px-4">วัน-เวลา เข้าสู่ระบบ (Log Timestamp)</th>
+                      <th className="py-2.5 px-4">ระบบและเบราว์เซอร์ (OS & Browser)</th>
+                      <th className="py-2.5 px-4 text-right">รหัสบัญชี (User UID)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs text-slate-700 font-semibold">
+                    {sortedHistory.slice(0, visibleCount).map((item) => {
+                      const { os, browser } = parseUserAgent(item.userAgent);
+                      return (
+                        <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                          {/* User Profile column */}
+                          <td className="py-2.5 px-4">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              {item.photoURL ? (
+                                <img
+                                  src={item.photoURL}
+                                  alt={item.displayName || 'User'}
+                                  referrerPolicy="no-referrer"
+                                  className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
+                                />
+                              ) : (
+                                <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                                  {item.displayName?.charAt(0) || 'U'}
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <div className="font-bold text-slate-900 truncate max-w-[180px] text-xs leading-snug">{item.displayName || 'ไม่ระบุชื่อ'}</div>
+                                <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5 truncate max-w-[180px]">
+                                  <Mail size={10} className="shrink-0 text-slate-400" />
+                                  <span className="truncate">{item.email}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Timestamp column */}
+                          <td className="py-2.5 px-4 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5 text-slate-800 text-xs font-bold">
+                              <Calendar size={13} className="text-slate-400 shrink-0" />
+                              <span>{formatThaiDate(item.timestamp)}</span>
+                            </div>
+                          </td>
+
+                          {/* OS and Browser column */}
+                          <td className="py-2.5 px-4 whitespace-nowrap">
+                            <div className="flex items-center gap-3 text-xs">
+                              <div className="flex items-center gap-1 text-slate-800 font-bold">
+                                <Monitor size={12} className="text-slate-400 shrink-0" />
+                                <span>{os}</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-[10.5px] text-slate-500 font-medium">
+                                <Cpu size={11} className="text-slate-300 shrink-0" />
+                                <span>{browser}</span>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* User ID column */}
+                          <td className="py-2.5 px-4 text-right">
+                            <span 
+                              className="font-mono text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md border border-slate-200/60 max-w-[130px] truncate inline-block align-middle"
+                              title={item.userId}
+                            >
+                              {item.userId}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="py-12 text-center text-slate-400 space-y-2">
+                  <History size={36} className="mx-auto text-slate-300" />
+                  <div className="font-bold text-slate-500 text-xs">ไม่พบประวัติการเข้าใช้งานระบบ</div>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile View Cards */}
+            <div className="block md:hidden divide-y divide-slate-100">
+              {sortedHistory.length > 0 ? (
+                sortedHistory.slice(0, visibleCount).map((item) => {
                   const { os, browser } = parseUserAgent(item.userAgent);
                   return (
-                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                      {/* User Profile column */}
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-3">
+                    <div key={item.id} className="p-3.5 space-y-2 hover:bg-slate-50/50 transition-colors">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
                           {item.photoURL ? (
                             <img
                               src={item.photoURL}
@@ -204,70 +291,51 @@ export default function LoginHistoryManager({ loginHistory }: LoginHistoryManage
                               {item.displayName?.charAt(0) || 'U'}
                             </div>
                           )}
-                          <div>
-                            <div className="font-bold text-slate-900">{item.displayName || 'ไม่ระบุชื่อ'}</div>
-                            <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                              <Mail size={11} className="shrink-0" />
-                              <span>{item.email}</span>
-                            </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-slate-900 text-xs truncate">{item.displayName || 'ไม่ระบุชื่อ'}</div>
+                            <div className="text-[10px] text-slate-400 truncate">{item.email}</div>
                           </div>
                         </div>
-                      </td>
-
-                      {/* Timestamp column */}
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-2 text-slate-800">
-                          <Calendar size={13} className="text-slate-400" />
-                          <span>{formatThaiDate(item.timestamp)}</span>
-                        </div>
-                      </td>
-
-                      {/* OS and Browser column */}
-                      <td className="py-4 px-6">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 text-slate-800">
-                            <Monitor size={13} className="text-slate-400" />
-                            <span>{os}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
-                            <Cpu size={11} className="text-slate-300" />
-                            <span>{browser}</span>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* User ID column */}
-                      <td className="py-4 px-6">
-                        <span className="font-mono text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-md border border-slate-200/50">
+                        <span 
+                          className="font-mono text-[9.5px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200/60 max-w-[100px] truncate shrink-0"
+                          title={item.userId}
+                        >
                           {item.userId}
                         </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          ) : (
-            <div className="py-16 text-center text-slate-400 space-y-3">
-              <History size={40} className="mx-auto text-slate-300 animate-pulse" />
-              <div className="font-bold text-slate-500 text-sm">ไม่พบประวัติการเข้าใช้งานระบบ</div>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto font-medium">
-                ไม่พบผลลัพธ์ที่ตรงกับคำค้นหาของคุณ หรือยังไม่มีประวัติการเข้าใช้งานเก็บในฐานข้อมูล ณ ขณะนี้
-              </p>
-            </div>
-          )}
-        </div>
+                      </div>
 
-        {/* Load more controls */}
-        {sortedHistory.length > visibleCount && (
-          <div className="p-4 bg-slate-50/50 border-t border-slate-100 text-center">
-            <button
-              onClick={() => setVisibleCount(prev => prev + 15)}
-              className="text-xs text-blue-600 hover:text-blue-700 font-bold hover:underline cursor-pointer transition-colors"
-            >
-              แสดงข้อมูลเพิ่มเติม (+15 รายการ)
-            </button>
-          </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-600 pt-1 border-t border-slate-100/80">
+                        <div className="flex items-center gap-1 font-bold text-slate-700">
+                          <Calendar size={12} className="text-slate-400 shrink-0" />
+                          <span>{formatThaiDate(item.timestamp)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px]">
+                          <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-semibold">{os}</span>
+                          <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-semibold">{browser}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="py-10 text-center text-slate-400 text-xs font-bold">
+                  ไม่พบประวัติการเข้าใช้งานระบบ
+                </div>
+              )}
+            </div>
+
+            {/* Load more controls */}
+            {sortedHistory.length > visibleCount && (
+              <div className="p-3 bg-slate-50/50 border-t border-slate-100 text-center">
+                <button
+                  onClick={() => setVisibleCount(prev => prev + 15)}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-bold hover:underline cursor-pointer transition-colors"
+                >
+                  แสดงข้อมูลเพิ่มเติม (+15 รายการ)
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

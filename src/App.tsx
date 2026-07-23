@@ -586,7 +586,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans antialiased text-slate-800">
+    <div className="min-h-screen max-w-full overflow-x-hidden bg-slate-50 flex flex-col font-sans antialiased text-slate-800">
       {/* Top navigation */}
       <Navbar 
         activeTab={activeTab} 
@@ -598,7 +598,7 @@ export default function App() {
       />
 
       {/* Main Content Stage */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 lg:pb-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 lg:pb-8 overflow-x-hidden">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 space-y-4">
             <RefreshCw className="animate-spin text-blue-600" size={36} />

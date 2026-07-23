@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { MaintenanceTask, MaintenanceType, MaintenanceStatus, MaintenancePriority, AppUserRole } from '../types';
 import { 
   Plus, Search, Edit2, Trash2, Check, X, Filter, AlertCircle, 
-  Clock, ShieldAlert, Wrench, RefreshCw, Layers, Calendar, User, FileText, Building2, ChevronDown, FileSpreadsheet, MapPin 
+  Clock, ShieldAlert, ShieldCheck, Wrench, RefreshCw, Layers, Calendar, User, FileText, Building2, ChevronDown, FileSpreadsheet, MapPin 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ThaiAddressSelector } from './ThaiAddressSelector';
@@ -217,6 +217,7 @@ export default function MaintenanceManager({
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
+  const [filterApproval, setFilterApproval] = useState<'pending' | 'approved' | 'all'>('pending');
 
   // Form states
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -273,6 +274,13 @@ export default function MaintenanceManager({
     }
   }, [triggerCreateModal, setTriggerCreateModal]);
 
+  // Task counts for approval history tabs
+  const taskCounts = useMemo(() => {
+    const pending = tasks.filter(t => !t.isApproved).length;
+    const approved = tasks.filter(t => t.isApproved).length;
+    return { pending, approved, all: tasks.length };
+  }, [tasks]);
+
   // Filter and search tasks
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
@@ -287,9 +295,14 @@ export default function MaintenanceManager({
       const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
       const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
 
-      return matchesSearch && matchesType && matchesStatus && matchesPriority;
+      const matchesApproval = 
+        filterApproval === 'all' ? true :
+        filterApproval === 'pending' ? !task.isApproved :
+        Boolean(task.isApproved);
+
+      return matchesSearch && matchesType && matchesStatus && matchesPriority && matchesApproval;
     });
-  }, [tasks, searchTerm, filterType, filterStatus, filterPriority]);
+  }, [tasks, searchTerm, filterType, filterStatus, filterPriority, filterApproval]);
 
   const resetForm = () => {
     setTitle('');
@@ -646,6 +659,61 @@ export default function MaintenanceManager({
 
   return (
     <div className="space-y-4">
+      {/* Top View Selector Tabs: Active vs Approved History */}
+      <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 w-fit no-print overflow-x-auto max-w-full">
+        <button
+          type="button"
+          onClick={() => setFilterApproval('pending')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            filterApproval === 'pending'
+              ? 'bg-white text-slate-800 shadow-xs border border-slate-200/80'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Clock size={14} className={filterApproval === 'pending' ? 'text-amber-500' : 'text-slate-400'} />
+          <span>รายการปัจจุบัน / รออนุมัติ</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+            filterApproval === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {taskCounts.pending}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setFilterApproval('approved')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            filterApproval === 'approved'
+              ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/80'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <ShieldCheck size={14} className={filterApproval === 'approved' ? 'text-emerald-500' : 'text-slate-400'} />
+          <span>ประวัติงานที่อนุมัติแล้ว</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+            filterApproval === 'approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {taskCounts.approved}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setFilterApproval('all')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            filterApproval === 'all'
+              ? 'bg-white text-slate-800 shadow-xs border border-slate-200/80'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <FileText size={14} className={filterApproval === 'all' ? 'text-blue-500' : 'text-slate-400'} />
+          <span>ทั้งหมด</span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-200 text-slate-700">
+            {taskCounts.all}
+          </span>
+        </button>
+      </div>
+
       {/* Search and Filters Toolbar */}
       <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between no-print">
         <div className="relative w-full xl:w-64 shrink-0">
@@ -748,50 +816,51 @@ export default function MaintenanceManager({
       {/* Task List Table/Grid */}
       {tasks.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden no-print">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200/80">
-                  <th className="py-3.5 px-4.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">ชื่องานซ่อมบำรุง / อุปกรณ์</th>
-                  <th className="py-3.5 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">ประเภทงาน</th>
-                  <th className="py-3.5 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">ระดับความสำคัญ</th>
-                  <th className="py-3.5 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">ผู้รับผิดชอบ / ช่าง</th>
-                  <th className="py-3.5 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">กำหนดการ</th>
-                  <th className="py-3.5 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">สถานะและการอนุมัติ</th>
-                  <th className="py-3.5 px-4.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap text-right">จัดการ</th>
+                <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[10.5px]">
+                  <th className="py-2.5 px-3 font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">ชื่องานซ่อมบำรุง / อุปกรณ์</th>
+                  <th className="py-2.5 px-2.5 font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">ประเภทงาน</th>
+                  <th className="py-2.5 px-2.5 font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">ระดับความสำคัญ</th>
+                  <th className="py-2.5 px-2.5 font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">ผู้รับผิดชอบ / ช่าง</th>
+                  <th className="py-2.5 px-2.5 font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">กำหนดการ</th>
+                  <th className="py-2.5 px-2.5 font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">สถานะและการอนุมัติ</th>
+                  <th className="py-2.5 px-3 font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap text-right">จัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {filteredTasks.length > 0 ? (
                   filteredTasks.map((task) => (
                     <tr key={task.id} className="hover:bg-slate-50/80 transition-colors group">
-                      <td className="py-3.5 px-4.5 max-w-sm align-top">
-                        <div className="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{task.title}</div>
+                      <td className="py-2.5 px-3 max-w-xs align-top">
+                        <div className="text-xs font-bold text-slate-800 group-hover:text-blue-600 transition-colors break-words leading-snug">{task.title}</div>
                         {task.description && (
-                          <div className="text-xs text-slate-500 mt-0.5 line-clamp-1">{task.description}</div>
+                          <div className="text-[11px] text-slate-500 mt-0.5 line-clamp-2 leading-tight break-words">{task.description}</div>
                         )}
                         
                         {/* Equipment & Contact Badges */}
-                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10.5px]">
+                        <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px]">
                           {task.equipment && (
-                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-semibold border border-slate-200/60 whitespace-nowrap">
+                            <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-semibold border border-slate-200/60 max-w-[180px] truncate" title={task.equipment}>
                               อุปกรณ์: {task.equipment}
                             </span>
                           )}
                           {task.departmentOrCompany && (
-                            <span className="bg-blue-50 text-blue-700 border border-blue-200/60 px-2 py-0.5 rounded-md flex items-center gap-1 font-medium whitespace-nowrap">
-                              <Building2 size={11} />
-                              <span>{task.departmentOrCompany}</span>
+                            <span className="bg-blue-50 text-blue-700 border border-blue-200/60 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium max-w-[180px] truncate" title={task.departmentOrCompany}>
+                              <Building2 size={10} className="shrink-0" />
+                              <span className="truncate">{task.departmentOrCompany}</span>
                             </span>
                           )}
                           {(task.subdistrict || task.district || task.province) && (
-                            <span className="bg-slate-50 text-slate-600 border border-slate-200/60 px-2 py-0.5 rounded-md flex items-center gap-1 font-medium whitespace-nowrap">
-                              <MapPin size={11} className="text-slate-400" />
-                              <span>{[task.subdistrict, task.district, task.province].filter(Boolean).join(', ')}</span>
+                            <span className="bg-slate-50 text-slate-600 border border-slate-200/60 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium max-w-[200px] truncate">
+                              <MapPin size={10} className="text-slate-400 shrink-0" />
+                              <span className="truncate">{[task.subdistrict, task.district, task.province].filter(Boolean).join(', ')}</span>
                             </span>
                           )}
                           {task.phone && (
-                            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-2 py-0.5 rounded-md font-mono font-medium whitespace-nowrap">
+                            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-1.5 py-0.5 rounded font-mono font-medium shrink-0">
                               📞 {task.phone}
                             </span>
                           )}
@@ -799,113 +868,82 @@ export default function MaintenanceManager({
 
                         {/* GPS Target Location & Check-In / Out Status Badges */}
                         {(task.targetLocation || task.checkInLocation || task.checkOutLocation) && (
-                          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+                          <div className="mt-1 flex flex-wrap items-center gap-1 text-[9.5px]">
                             {task.targetLocation && (
                               <span 
-                                className="inline-flex items-center gap-1 text-blue-800 bg-blue-50/90 px-2 py-0.5 rounded-md border border-blue-200/80 font-medium whitespace-nowrap"
+                                className="inline-flex items-center gap-1 text-blue-800 bg-blue-50/90 px-1.5 py-0.5 rounded border border-blue-200/80 font-medium"
                                 title={`พิกัดเป้าหมาย: ${task.targetLocation.latitude}, ${task.targetLocation.longitude} (รัศมี ${task.targetLocation.radius}ม.)`}
                               >
-                                🎯 พิกัดเป้าหมาย
+                                🎯 พิกัดเป้าหมาย ({task.targetLocation.radius}ม.)
                               </span>
                             )}
 
-                            {task.checkInLocation && task.checkOutLocation ? (
-                              <span className="inline-flex items-center text-[10px] bg-white border border-slate-200/90 rounded-md overflow-hidden font-medium shadow-2xs whitespace-nowrap">
-                                <span 
-                                  className="inline-flex items-center gap-1 bg-emerald-50/90 text-emerald-900 px-2 py-0.5 border-r border-slate-200/80"
-                                  title={`สถานที่เช็คอิน: ${task.checkInLocation.address || 'ไม่ระบุสถานที่'}`}
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                  เช็คอิน: {new Date(task.checkInLocation.timestamp).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' })} {new Date(task.checkInLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
-                                  {task.checkInLocation.inGeofence ? (
-                                    <span className="text-emerald-600 font-bold ml-0.5">✓ ใน Geofence</span>
-                                  ) : (
-                                    <span className="text-amber-600 font-bold ml-0.5">⚠️ นอก Geofence</span>
-                                  )}
-                                </span>
-                                <span 
-                                  className="inline-flex items-center gap-1 bg-indigo-50/90 text-indigo-900 px-2 py-0.5"
-                                  title={`สถานที่เช็คเอาท์: ${task.checkOutLocation.address || 'ไม่ระบุสถานที่'}`}
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                                  เช็คเอาท์: {new Date(task.checkOutLocation.timestamp).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' })} {new Date(task.checkOutLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
-                                  {task.checkOutLocation.inGeofence ? (
-                                    <span className="text-indigo-600 font-bold ml-0.5">✓ ใน Geofence</span>
-                                  ) : (
-                                    <span className="text-amber-600 font-bold ml-0.5">⚠️ นอก Geofence</span>
-                                  )}
-                                </span>
+                            {task.checkInLocation && (
+                              <span 
+                                className="inline-flex items-center gap-1 text-emerald-800 bg-emerald-50/90 px-1.5 py-0.5 rounded border border-emerald-200/80 font-medium"
+                                title={`สถานที่เช็คอิน: ${task.checkInLocation.address || 'ไม่ระบุสถานที่'}`}
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                                <span>เช็คอิน: {new Date(task.checkInLocation.timestamp).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' })} {new Date(task.checkInLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</span>
+                                {task.checkInLocation.inGeofence ? (
+                                  <span className="text-emerald-600 font-bold ml-0.5 shrink-0">✓ ใน Geofence</span>
+                                ) : (
+                                  <span className="text-amber-600 font-bold ml-0.5 shrink-0">⚠️ นอก Geofence</span>
+                                )}
                               </span>
-                            ) : (
-                              <>
-                                {task.checkInLocation && (
-                                  <span 
-                                    className="inline-flex items-center gap-1 text-emerald-800 bg-emerald-50/90 px-2 py-0.5 rounded-md border border-emerald-200/80 font-medium whitespace-nowrap"
-                                    title={`สถานที่เช็คอิน: ${task.checkInLocation.address || 'ไม่ระบุสถานที่'}`}
-                                  >
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    เช็คอิน: {new Date(task.checkInLocation.timestamp).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' })} {new Date(task.checkInLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
-                                    {task.checkInLocation.inGeofence ? (
-                                      <span className="text-emerald-600 font-bold ml-0.5">✓ ใน Geofence</span>
-                                    ) : (
-                                      <span className="text-amber-600 font-bold ml-0.5">⚠️ นอก Geofence</span>
-                                    )}
-                                  </span>
-                                )}
+                            )}
 
-                                {task.checkOutLocation && (
-                                  <span 
-                                    className="inline-flex items-center gap-1 text-indigo-800 bg-indigo-50/90 px-2 py-0.5 rounded-md border border-indigo-200/80 font-medium whitespace-nowrap"
-                                    title={`สถานที่เช็คเอาท์: ${task.checkOutLocation.address || 'ไม่ระบุสถานที่'}`}
-                                  >
-                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                                    เช็คเอาท์: {new Date(task.checkOutLocation.timestamp).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' })} {new Date(task.checkOutLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
-                                    {task.checkOutLocation.inGeofence ? (
-                                      <span className="text-indigo-600 font-bold ml-0.5">✓ ใน Geofence</span>
-                                    ) : (
-                                      <span className="text-amber-600 font-bold ml-0.5">⚠️ นอก Geofence</span>
-                                    )}
-                                  </span>
+                            {task.checkOutLocation && (
+                              <span 
+                                className="inline-flex items-center gap-1 text-indigo-800 bg-indigo-50/90 px-1.5 py-0.5 rounded border border-indigo-200/80 font-medium"
+                                title={`สถานที่เช็คเอาท์: ${task.checkOutLocation.address || 'ไม่ระบุสถานที่'}`}
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
+                                <span>เช็คเอาท์: {new Date(task.checkOutLocation.timestamp).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' })} {new Date(task.checkOutLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</span>
+                                {task.checkOutLocation.inGeofence ? (
+                                  <span className="text-indigo-600 font-bold ml-0.5 shrink-0">✓ ใน Geofence</span>
+                                ) : (
+                                  <span className="text-amber-600 font-bold ml-0.5 shrink-0">⚠️ นอก Geofence</span>
                                 )}
-                              </>
+                              </span>
                             )}
                           </div>
                         )}
                       </td>
-                      <td className="py-4 px-4 align-top pt-4.5 whitespace-nowrap">
-                        <span className={`inline-flex items-center whitespace-nowrap text-[11px] font-semibold border px-2.5 py-1 rounded-xl ${getTypeStyle(task.type)} shadow-2xs`}>
+                      <td className="py-2.5 px-2.5 align-top pt-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center whitespace-nowrap text-[10.5px] font-semibold border px-2 py-0.5 rounded-lg ${getTypeStyle(task.type)} shadow-2xs`}>
                           {getTypeThai(task.type)}
                         </span>
                       </td>
-                      <td className="py-4 px-4 align-top pt-4.5 whitespace-nowrap">
-                        <span className={`inline-flex items-center whitespace-nowrap text-[11px] px-2.5 py-1 rounded-xl ${getPriorityStyle(task.priority)} shadow-2xs`}>
+                      <td className="py-2.5 px-2.5 align-top pt-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center whitespace-nowrap text-[10.5px] px-2 py-0.5 rounded-lg ${getPriorityStyle(task.priority)} shadow-2xs`}>
                           {getPriorityThai(task.priority)}
                         </span>
                       </td>
-                      <td className="py-4 px-4 align-top pt-4.5 text-xs text-slate-700 font-medium whitespace-nowrap">
+                      <td className="py-2.5 px-2.5 align-top pt-3 text-xs text-slate-700 font-medium whitespace-nowrap">
                         {task.assignedTo ? (
-                          <span className="inline-flex items-center whitespace-nowrap gap-1.5 bg-slate-100/90 text-slate-700 px-2.5 py-1 rounded-xl border border-slate-200/60 font-semibold text-xs">
-                            <User size={12} className="text-slate-400" />
+                          <span className="inline-flex items-center whitespace-nowrap gap-1 bg-slate-100/90 text-slate-700 px-2 py-0.5 rounded-lg border border-slate-200/60 font-semibold text-[11px]">
+                            <User size={11} className="text-slate-400" />
                             {task.assignedTo}
                           </span>
                         ) : (
-                          <span className="text-slate-400 italic text-xs whitespace-nowrap">ยังไม่ได้มอบหมาย</span>
+                          <span className="text-slate-400 italic text-[11px] whitespace-nowrap">ยังไม่ได้มอบหมาย</span>
                         )}
                       </td>
-                      <td className="py-4 px-4 align-top pt-4.5 whitespace-nowrap">
-                        <div className="inline-flex items-center whitespace-nowrap gap-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-xl">
-                          <Calendar size={12} className="text-slate-400 shrink-0" />
-                          <span className="text-xs font-mono text-slate-700 font-bold">{task.scheduledDate}</span>
+                      <td className="py-2.5 px-2.5 align-top pt-3 whitespace-nowrap">
+                        <div className="inline-flex items-center whitespace-nowrap gap-1 bg-slate-50 border border-slate-200/80 px-2 py-0.5 rounded-lg">
+                          <Calendar size={11} className="text-slate-400 shrink-0" />
+                          <span className="text-[11px] font-mono text-slate-700 font-bold">{task.scheduledDate}</span>
                         </div>
                         {task.completedDate && (
-                          <div className="text-[10px] text-emerald-600 font-semibold mt-1 flex items-center whitespace-nowrap gap-1">
-                            <Check size={11} className="stroke-[3] shrink-0" />
+                          <div className="text-[9.5px] text-emerald-600 font-semibold mt-0.5 flex items-center whitespace-nowrap gap-0.5">
+                            <Check size={10} className="stroke-[3] shrink-0" />
                             <span>เสร็จเมื่อ: {task.completedDate}</span>
                           </div>
                         )}
                       </td>
-                      <td className="py-4 px-4 align-top pt-4.5 whitespace-nowrap">
-                        <div className="flex flex-col items-start gap-1.5 w-[140px]">
+                      <td className="py-2.5 px-2.5 align-top pt-3 whitespace-nowrap">
+                        <div className="flex flex-col items-start gap-1 w-[130px]">
                           {/* Task Status Pill / Select */}
                           {userRole === 'admin' ? (
                             <div className="relative inline-flex items-center w-full" title="คลิกเพื่อเปลี่ยนสถานะงานซ่อมบำรุง">
@@ -922,7 +960,7 @@ export default function MaintenanceManager({
                                     console.error("Error updating status:", error);
                                   }
                                 }}
-                                className={`w-full whitespace-nowrap text-[11px] font-bold px-2.5 py-1.5 pr-6 rounded-xl border cursor-pointer appearance-none outline-none shadow-2xs transition-all active:scale-95 ${
+                                className={`w-full whitespace-nowrap text-[10.5px] font-bold px-2 py-1 pr-5 rounded-lg border cursor-pointer appearance-none outline-none shadow-2xs transition-all active:scale-95 ${
                                   task.status === 'Completed'
                                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300/80 hover:bg-emerald-100/80 focus:ring-2 focus:ring-emerald-500/20'
                                     : task.status === 'In Progress'
@@ -937,7 +975,7 @@ export default function MaintenanceManager({
                                 <option value="Completed">✓ เสร็จสิ้นภารกิจ</option>
                                 <option value="Cancelled">✕ ยกเลิกแผน</option>
                               </select>
-                              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 text-slate-600" />
+                              <ChevronDown size={11} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 text-slate-600" />
                             </div>
                           ) : (
                             <div className="w-full">{getStatusBadge(task.status)}</div>
@@ -959,29 +997,29 @@ export default function MaintenanceManager({
                                     console.error("Error toggling approval:", error);
                                   }
                                 }}
-                                className={`w-full flex items-center justify-between whitespace-nowrap text-[10.5px] font-bold px-2.5 py-1 rounded-xl cursor-pointer transition-all hover:shadow-2xs active:scale-95 border ${
+                                className={`w-full flex items-center justify-between whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-lg cursor-pointer transition-all hover:shadow-2xs active:scale-95 border ${
                                   task.isApproved
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 hover:bg-emerald-100/80'
                                     : 'bg-amber-50 text-amber-800 border-amber-200/80 hover:bg-amber-100/80'
                                 }`}
                                 title="คลิกเพื่อสลับสถานะอนุมัติ / รออนุมัติ"
                               >
-                                <span className="flex items-center gap-1.5">
+                                <span className="flex items-center gap-1">
                                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${task.isApproved ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></span>
                                   <span>{task.isApproved ? 'อนุมัติแล้ว ✓' : 'รออนุมัติ ⏳'}</span>
                                 </span>
-                                <ChevronDown size={10} className="text-slate-400 opacity-60 ml-0.5" />
+                                <ChevronDown size={9} className="text-slate-400 opacity-60" />
                               </button>
                             ) : task.isApproved ? (
                               <span 
-                                className="w-full flex items-center justify-center whitespace-nowrap gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[9.5px] font-bold px-2.5 py-0.5 rounded-xl"
+                                className="w-full flex items-center justify-center whitespace-nowrap gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[9px] font-bold px-2 py-0.5 rounded-lg"
                                 title={`อนุมัติโดย: ${task.approvedBy || ''} เมื่อ ${task.approvedAt ? new Date(task.approvedAt).toLocaleDateString('th-TH') : ''}`}
                               >
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                 อนุมัติแล้ว
                               </span>
                             ) : (
-                              <span className="w-full flex items-center justify-center whitespace-nowrap gap-1 bg-amber-50 text-amber-800 border border-amber-200/60 text-[9.5px] font-bold px-2.5 py-0.5 rounded-xl">
+                              <span className="w-full flex items-center justify-center whitespace-nowrap gap-1 bg-amber-50 text-amber-800 border border-amber-200/60 text-[9px] font-bold px-2 py-0.5 rounded-lg">
                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                                 รออนุมัติ
                               </span>
@@ -989,15 +1027,15 @@ export default function MaintenanceManager({
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="py-2.5 px-3 text-right align-top pt-3">
+                        <div className="flex items-center justify-end gap-1">
                           {/* Dynamic GPS Check-In / Check-Out Actions (Admin & Technician Only) */}
                           {task.targetLocation && userRole !== 'viewer' && (
-                            <div className="mr-1">
+                            <div className="mr-0.5">
                               {!task.checkInLocation ? (
                                 <button
                                   onClick={() => setActiveGPSCheckTask(task)}
-                                  className="flex items-center gap-1 text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded-md transition-all cursor-pointer shadow-xs hover:-translate-y-0.5 shrink-0"
+                                  className="flex items-center gap-1 text-[9.5px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-1.5 py-0.5 rounded-md transition-all cursor-pointer shadow-xs shrink-0"
                                   title="เช็คอินสถานที่ปฏิบัติงานผ่าน GPS"
                                 >
                                   <span>📍 เช็คอิน GPS</span>
@@ -1005,7 +1043,7 @@ export default function MaintenanceManager({
                               ) : !task.checkOutLocation ? (
                                 <button
                                   onClick={() => setActiveGPSCheckTask(task)}
-                                  className="flex items-center gap-1 text-[10px] bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2 py-1 rounded-md transition-all cursor-pointer shadow-xs hover:-translate-y-0.5 shrink-0 animate-pulse"
+                                  className="flex items-center gap-1 text-[9.5px] bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-1.5 py-0.5 rounded-md transition-all cursor-pointer shadow-xs shrink-0 animate-pulse"
                                   title="เช็คเอาท์สถานที่ปฏิบัติงานและปิดใบงาน"
                                 >
                                   <span>🏁 เช็คเอาท์ GPS</span>
@@ -1017,20 +1055,20 @@ export default function MaintenanceManager({
                           {userRole !== 'viewer' && (
                             <button
                               onClick={() => handleOpenEdit(task)}
-                              className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors cursor-pointer"
                               title="แก้ไขใบงาน"
                             >
-                              <Edit2 size={14} />
+                              <Edit2 size={13} />
                             </button>
                           )}
                           
                           {userRole === 'admin' && (
                             <button
                               onClick={() => setDeleteId(task.id || null)}
-                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
                               title="ลบงาน"
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={13} />
                             </button>
                           )}
                         </div>
@@ -1046,6 +1084,234 @@ export default function MaintenanceManager({
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="block md:hidden divide-y divide-slate-100">
+            {filteredTasks.length > 0 ? (
+              filteredTasks.map((task) => (
+                <div key={task.id} className="p-3.5 sm:p-4 bg-white hover:bg-slate-50/60 transition-colors space-y-2.5">
+                  {/* Header: Title & Type/Priority */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-sm font-bold text-slate-800 leading-snug break-words">
+                        {task.title}
+                      </h4>
+                      {task.description && (
+                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 leading-relaxed break-words">
+                          {task.description}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className={`inline-flex items-center text-[10px] font-semibold border px-2 py-0.5 rounded-lg ${getTypeStyle(task.type)}`}>
+                        {getTypeThai(task.type)}
+                      </span>
+                      <span className={`inline-flex items-center text-[10px] px-2 py-0.5 rounded-lg ${getPriorityStyle(task.priority)}`}>
+                        {getPriorityThai(task.priority)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Badges: Equipment / Dept / Location / Phone */}
+                  <div className="flex flex-wrap items-center gap-1.5 text-[10.5px]">
+                    {task.equipment && (
+                      <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-semibold border border-slate-200/80 max-w-[200px] truncate">
+                        อุปกรณ์: {task.equipment}
+                      </span>
+                    )}
+                    {task.departmentOrCompany && (
+                      <span className="bg-blue-50 text-blue-700 border border-blue-200/80 px-2 py-0.5 rounded-md flex items-center gap-1 font-medium max-w-[200px] truncate">
+                        <Building2 size={11} className="shrink-0" />
+                        <span className="truncate">{task.departmentOrCompany}</span>
+                      </span>
+                    )}
+                    {(task.subdistrict || task.district || task.province) && (
+                      <span className="bg-slate-50 text-slate-600 border border-slate-200/80 px-2 py-0.5 rounded-md flex items-center gap-1 font-medium max-w-[220px] truncate">
+                        <MapPin size={11} className="text-slate-400 shrink-0" />
+                        <span className="truncate">{[task.subdistrict, task.district, task.province].filter(Boolean).join(', ')}</span>
+                      </span>
+                    )}
+                    {task.phone && (
+                      <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2 py-0.5 rounded-md font-mono font-medium shrink-0">
+                        📞 {task.phone}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* GPS Location Badges & Timestamps */}
+                  {(task.targetLocation || task.checkInLocation || task.checkOutLocation) && (
+                    <div className="flex flex-col gap-1 text-[10px] pt-1">
+                      {task.targetLocation && (
+                        <div className="inline-flex items-center gap-1 text-blue-800 bg-blue-50/90 px-2 py-1 rounded-md border border-blue-200/80 font-medium">
+                          🎯 พิกัดเป้าหมาย ({task.targetLocation.radius}ม.)
+                        </div>
+                      )}
+                      {task.checkInLocation && (
+                        <div className="inline-flex items-center justify-between gap-1 text-emerald-800 bg-emerald-50/90 px-2 py-1 rounded-md border border-emerald-200/80 font-medium min-w-0">
+                          <span className="flex items-center gap-1 truncate">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                            <span className="truncate">เช็คอิน: {new Date(task.checkInLocation.timestamp).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' })} {new Date(task.checkInLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</span>
+                          </span>
+                          {task.checkInLocation.inGeofence ? (
+                            <span className="text-emerald-600 font-bold shrink-0">✓ ใน Geofence</span>
+                          ) : (
+                            <span className="text-amber-600 font-bold shrink-0">⚠️ นอก Geofence</span>
+                          )}
+                        </div>
+                      )}
+                      {task.checkOutLocation && (
+                        <div className="inline-flex items-center justify-between gap-1 text-indigo-800 bg-indigo-50/90 px-2 py-1 rounded-md border border-indigo-200/80 font-medium min-w-0">
+                          <span className="flex items-center gap-1 truncate">
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
+                            <span className="truncate">เช็คเอาท์: {new Date(task.checkOutLocation.timestamp).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' })} {new Date(task.checkOutLocation.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</span>
+                          </span>
+                          {task.checkOutLocation.inGeofence ? (
+                            <span className="text-indigo-600 font-bold shrink-0">✓ ใน Geofence</span>
+                          ) : (
+                            <span className="text-amber-600 font-bold shrink-0">⚠️ นอก Geofence</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Info Row: Assignee & Schedule */}
+                  <div className="flex items-center justify-between gap-2 pt-1 text-xs text-slate-600 border-t border-slate-100">
+                    <div className="flex items-center gap-1 font-medium truncate">
+                      <User size={12} className="text-slate-400 shrink-0" />
+                      <span className="truncate">{task.assignedTo || 'ยังไม่ได้มอบหมาย'}</span>
+                    </div>
+                    <div className="flex items-center gap-1 font-mono font-bold text-slate-700 shrink-0 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200/70">
+                      <Calendar size={11} className="text-slate-400 shrink-0" />
+                      <span>{task.scheduledDate}</span>
+                    </div>
+                  </div>
+
+                  {/* Action Controls Row */}
+                  <div className="flex items-center justify-between gap-2 pt-1 mt-1 border-t border-slate-100">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {/* Status Select or Badge */}
+                      {userRole === 'admin' ? (
+                        <div className="relative flex-1 min-w-[110px] max-w-[150px]">
+                          <select
+                            value={task.status}
+                            onChange={async (e) => {
+                              const newStatus = e.target.value as MaintenanceStatus;
+                              try {
+                                await onUpdateTask(task.id!, {
+                                  status: newStatus,
+                                  completedDate: newStatus === 'Completed' ? new Date().toISOString().split('T')[0] : task.completedDate
+                                });
+                              } catch (error) {
+                                console.error("Error updating status:", error);
+                              }
+                            }}
+                            className={`w-full text-[10.5px] font-bold px-2 py-1 pr-5 rounded-lg border cursor-pointer appearance-none outline-none ${
+                              task.status === 'Completed'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                : task.status === 'In Progress'
+                                ? 'bg-blue-50 text-blue-800 border-blue-300'
+                                : task.status === 'Cancelled'
+                                ? 'bg-rose-50 text-rose-800 border-rose-300'
+                                : 'bg-amber-50 text-amber-900 border-amber-300'
+                            }`}
+                          >
+                            <option value="Pending">🕒 รอดำเนินการ</option>
+                            <option value="In Progress">🔄 กำลังดำเนินการ</option>
+                            <option value="Completed">✓ เสร็จสิ้นภารกิจ</option>
+                            <option value="Cancelled">✕ ยกเลิกแผน</option>
+                          </select>
+                          <ChevronDown size={12} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 text-slate-600" />
+                        </div>
+                      ) : (
+                        <div>{getStatusBadge(task.status)}</div>
+                      )}
+
+                      {/* Approval toggle */}
+                      {userRole === 'admin' ? (
+                        <button
+                          onClick={async () => {
+                            const nextApproved = !task.isApproved;
+                            try {
+                              await onUpdateTask(task.id!, {
+                                isApproved: nextApproved,
+                                approvedBy: nextApproved ? currentUserEmail : '',
+                                approvedAt: nextApproved ? new Date().toISOString() : ''
+                              });
+                            } catch (error) {
+                              console.error("Error toggling approval:", error);
+                            }
+                          }}
+                          className={`text-[10px] font-bold px-2 py-1 rounded-lg border cursor-pointer shrink-0 ${
+                            task.isApproved
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-amber-50 text-amber-800 border-amber-200'
+                          }`}
+                        >
+                          {task.isApproved ? 'อนุมัติแล้ว ✓' : 'รออนุมัติ ⏳'}
+                        </button>
+                      ) : task.isApproved ? (
+                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9.5px] font-bold px-2 py-0.5 rounded-lg shrink-0">
+                          อนุมัติแล้ว ✓
+                        </span>
+                      ) : (
+                        <span className="bg-amber-50 text-amber-800 border border-amber-200 text-[9.5px] font-bold px-2 py-0.5 rounded-lg shrink-0">
+                          รออนุมัติ ⏳
+                        </span>
+                      )}
+                    </div>
+
+                    {/* GPS Check-in & Edit & Delete */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {task.targetLocation && userRole !== 'viewer' && (
+                        <>
+                          {!task.checkInLocation ? (
+                            <button
+                              onClick={() => setActiveGPSCheckTask(task)}
+                              className="text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded-md"
+                            >
+                              📍 เช็คอิน
+                            </button>
+                          ) : !task.checkOutLocation ? (
+                            <button
+                              onClick={() => setActiveGPSCheckTask(task)}
+                              className="text-[10px] bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2 py-1 rounded-md"
+                            >
+                              🏁 เช็คเอาท์
+                            </button>
+                          ) : null}
+                        </>
+                      )}
+
+                      {userRole !== 'viewer' && (
+                        <button
+                          onClick={() => handleOpenEdit(task)}
+                          className="p-1 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                          title="แก้ไขใบงาน"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                      )}
+
+                      {userRole === 'admin' && (
+                        <button
+                          onClick={() => setDeleteId(task.id || null)}
+                          className="p-1 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                          title="ลบงาน"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="py-8 text-center text-slate-400 text-xs">
+                ไม่พบข้อมูลแผนงานซ่อมบำรุงที่ตรงกับตัวกรองของคุณ
+              </div>
+            )}
           </div>
         </div>
       )}

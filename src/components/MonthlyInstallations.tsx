@@ -26,6 +26,7 @@ export default function MonthlyInstallations({
 }: MonthlyInstallationsProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterApproval, setFilterApproval] = useState<'pending' | 'approved' | 'all'>('pending');
 
   // Form state
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -169,6 +170,13 @@ export default function MonthlyInstallations({
     };
   };
 
+  // Counts for tabs
+  const counts = useMemo(() => {
+    const pending = installations.filter(i => !i.isApproved).length;
+    const approved = installations.filter(i => i.isApproved).length;
+    return { pending, approved, all: installations.length };
+  }, [installations]);
+
   // Filter and Search Installations
   const filteredInstallations = useMemo(() => {
     return installations.filter(inst => {
@@ -181,9 +189,14 @@ export default function MonthlyInstallations({
 
       const matchesStatus = filterStatus === 'all' || inst.status === filterStatus;
 
-      return matchesSearch && matchesStatus;
+      const matchesApproval = 
+        filterApproval === 'all' ? true :
+        filterApproval === 'pending' ? !inst.isApproved :
+        Boolean(inst.isApproved);
+
+      return matchesSearch && matchesStatus && matchesApproval;
     });
-  }, [installations, searchTerm, filterStatus]);
+  }, [installations, searchTerm, filterStatus, filterApproval]);
 
   const getStatusBadge = (status: InstallationStatus) => {
     switch (status) {
@@ -206,6 +219,61 @@ export default function MonthlyInstallations({
 
   return (
     <div className="space-y-4">
+      {/* Top View Selector Tabs: Active vs Approved History */}
+      <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 w-fit no-print overflow-x-auto max-w-full">
+        <button
+          type="button"
+          onClick={() => setFilterApproval('pending')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            filterApproval === 'pending'
+              ? 'bg-white text-slate-800 shadow-xs border border-slate-200/80'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Clock size={14} className={filterApproval === 'pending' ? 'text-amber-500' : 'text-slate-400'} />
+          <span>งานปัจจุบัน / รออนุมัติ</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+            filterApproval === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {counts.pending}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setFilterApproval('approved')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            filterApproval === 'approved'
+              ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/80'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <ShieldCheck size={14} className={filterApproval === 'approved' ? 'text-emerald-500' : 'text-slate-400'} />
+          <span>ประวัติงานที่อนุมัติแล้ว</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+            filterApproval === 'approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {counts.approved}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setFilterApproval('all')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            filterApproval === 'all'
+              ? 'bg-white text-slate-800 shadow-xs border border-slate-200/80'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <FileText size={14} className={filterApproval === 'all' ? 'text-purple-500' : 'text-slate-400'} />
+          <span>ทั้งหมด</span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-200 text-slate-700">
+            {counts.all}
+          </span>
+        </button>
+      </div>
+
       {/* Header and filter bar */}
       <div className="bg-white p-4 sm:p-4.5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row gap-3.5 items-center justify-between no-print">
         <div className="relative w-full md:w-80">

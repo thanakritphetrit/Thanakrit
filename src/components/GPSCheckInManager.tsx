@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { 
   MapPin, Navigation, Camera, CheckCircle2, LogOut, Clock, AlertTriangle, 
-  RefreshCw, Search, ShieldCheck, UserCheck, CheckSquare, X, ChevronRight, Eye, Calendar, Sparkles, Sliders,
+  RefreshCw, Search, ShieldCheck, UserCheck, CheckSquare, X, ChevronRight, ChevronDown, Eye, Calendar, Sparkles, Sliders,
   Edit3, Trash2
 } from 'lucide-react';
 import { User } from 'firebase/auth';
@@ -90,9 +90,12 @@ export default function GPSCheckInManager({
   const [savingEdit, setSavingEdit] = useState<boolean>(false);
   const [deletingLogId, setDeletingLogId] = useState<string | null>(null);
 
-  // History Filters
+  // History Filters & Tab state
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Checked-In' | 'Completed'>('All');
+  const [logTab, setLogTab] = useState<'today' | 'history' | 'all'>('today');
+  const [dateFilter, setDateFilter] = useState<string>('');
+  const [isLogSectionExpanded, setIsLogSectionExpanded] = useState<boolean>(false);
 
   // Request & Watch GPS Position
   const fetchCurrentPosition = () => {
@@ -549,6 +552,43 @@ export default function GPSCheckInManager({
     }
   };
 
+  // Date helper (YYYY-MM-DD local)
+  const getLocalDateString = (isoString?: string) => {
+    if (!isoString) return '';
+    try {
+      const d = new Date(isoString);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch {
+      return '';
+    }
+  };
+
+  const todayStr = getLocalDateString(new Date().toISOString());
+
+  // Count logs for tabs
+  const logCounts = React.useMemo(() => {
+    let todayCount = 0;
+    let historyCount = 0;
+
+    checkInLogs.forEach(log => {
+      const logDate = getLocalDateString(log.checkInTime);
+      if (log.status === 'Checked-In' || logDate === todayStr) {
+        todayCount++;
+      } else {
+        historyCount++;
+      }
+    });
+
+    return {
+      today: todayCount,
+      history: historyCount,
+      all: checkInLogs.length
+    };
+  }, [checkInLogs, todayStr]);
+
   // Filtered Check-In Logs for table
   const filteredLogs = checkInLogs.filter(log => {
     const matchesSearch = 
@@ -559,7 +599,17 @@ export default function GPSCheckInManager({
 
     const matchesStatus = filterStatus === 'All' || log.status === filterStatus;
 
-    return matchesSearch && matchesStatus;
+    const logDate = getLocalDateString(log.checkInTime);
+    const isTodayOrActive = log.status === 'Checked-In' || logDate === todayStr;
+
+    const matchesTab = 
+      logTab === 'all' ? true :
+      logTab === 'today' ? isTodayOrActive :
+      !isTodayOrActive; // 'history' tab (older than 1 day / past days)
+
+    const matchesDateFilter = !dateFilter || logDate === dateFilter;
+
+    return matchesSearch && matchesStatus && matchesTab && matchesDateFilter;
   });
 
   return (
@@ -883,30 +933,128 @@ export default function GPSCheckInManager({
 
       {/* History Log Table Section */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        {/* Top Tab Bar: Today vs Historical Logs + Collapsible Toggle */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-100 pb-3 no-print">
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 overflow-x-auto max-w-full">
+            <button
+              type="button"
+              onClick={() => { setLogTab('today'); setIsLogSectionExpanded(true); }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                logTab === 'today'
+                  ? 'bg-white text-blue-800 shadow-xs border border-slate-200/80'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Clock size={14} className={logTab === 'today' ? 'text-blue-600' : 'text-slate-400'} />
+              <span>รายการวันนี้ / กำลังทำ</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                logTab === 'today' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {logCounts.today}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setLogTab('history'); setIsLogSectionExpanded(true); }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                logTab === 'history'
+                  ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/80'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <ShieldCheck size={14} className={logTab === 'history' ? 'text-emerald-600' : 'text-slate-400'} />
+              <span>ประวัติย้อนหลัง (ครบ 1 วัน / เสร็จสิ้น)</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                logTab === 'history' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {logCounts.history}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setLogTab('all'); setIsLogSectionExpanded(true); }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                logTab === 'all'
+                  ? 'bg-white text-slate-800 shadow-xs border border-slate-200/80'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Calendar size={14} className={logTab === 'all' ? 'text-purple-600' : 'text-slate-400'} />
+              <span>ทั้งหมด</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-200 text-slate-700">
+                {logCounts.all}
+              </span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsLogSectionExpanded(!isLogSectionExpanded)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200/90 text-slate-800 border border-slate-200 font-bold text-xs rounded-xl transition-all cursor-pointer shadow-2xs select-none ml-auto"
+            title={isLogSectionExpanded ? "ย่อตารางซ่อน" : "ขยายแสดงตาราง"}
+          >
+            <span>{isLogSectionExpanded ? 'ย่อตารางซ่อน' : 'ขยายแสดงตาราง'}</span>
+            <ChevronDown size={14} className={`transition-transform duration-200 text-slate-600 ${isLogSectionExpanded ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+
+        {isLogSectionExpanded && (
+          <div className="space-y-4 pt-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
             <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
               <Clock size={18} className="text-blue-600" />
-              <span>ประวัติการเช็คอิน - เช็คเอาท์ (Check-In / Check-Out Logs)</span>
+              <span>
+                {logTab === 'today' ? 'บันทึกการเช็คอินประจำวันนี้ (Today Logs)' :
+                 logTab === 'history' ? 'ประวัติการเช็คอินย้อนหลัง (Historical Check-In Logs)' :
+                 'บันทึกประวัติการเช็คอินทั้งหมด (All Check-In Logs)'}
+              </span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              รายการบันทึกเวลา พิกัด GPS และพนักงานที่เข้าปฏิบัติงานทั้งหมดในระบบ
+              {logTab === 'today' ? 'แสดงเฉพาะรายการเช็คอินวันนี้ หรืองานที่กำลังปฏิบัติอยู่ (ครบ 1 วันแล้วย้ายเข้าประวัติย้อนหลังอัตโนมัติ)' :
+               'เก็บบันทึกประวัติเวลา พิกัด GPS ภาพถ่าย และพนักงานที่เข้าปฏิบัติงานย้อนหลัง'}
             </p>
           </div>
 
           {/* Controls & Filter */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Search */}
             <div className="relative">
               <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ค้นหางาน, พนักงาน, อุปกรณ์..."
-                className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 w-44 sm:w-56"
+                placeholder="ค้นหางาน, พนักงาน..."
+                className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 w-36 sm:w-48"
               />
             </div>
 
+            {/* Date filter */}
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
+              <Calendar size={13} className="text-slate-400 shrink-0" />
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-700 focus:outline-none"
+                title="เลือกวันที่ต้องการดูประวัติ"
+              />
+              {dateFilter && (
+                <button
+                  type="button"
+                  onClick={() => setDateFilter('')}
+                  className="p-0.5 hover:bg-slate-200 rounded-full text-slate-500 transition-colors"
+                  title="ล้างตัวกรองวันที่"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
+            {/* Status dropdown */}
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value as any)}
@@ -919,24 +1067,24 @@ export default function GPSCheckInManager({
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
+        {/* Table View for Desktop */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
-                <th className="py-3 px-3">พนักงาน</th>
-                <th className="py-3 px-3">งานซ่อมบำรุง</th>
-                <th className="py-3 px-3">เวลาเช็คอิน</th>
-                <th className="py-3 px-3">เวลาเช็คเอาท์</th>
-                <th className="py-3 px-3 text-center">ระยะเวลา</th>
-                <th className="py-3 px-3 text-center">สถานะ</th>
-                <th className="py-3 px-3 text-right">จัดการ</th>
+              <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 text-[11px]">
+                <th className="py-2.5 px-2">พนักงาน</th>
+                <th className="py-2.5 px-2">งานซ่อมบำรุง</th>
+                <th className="py-2.5 px-2">เวลาเช็คอิน</th>
+                <th className="py-2.5 px-2">เวลาเช็คเอาท์</th>
+                <th className="py-2.5 px-2 text-center">ระยะเวลา</th>
+                <th className="py-2.5 px-2 text-center">สถานะ</th>
+                <th className="py-2.5 px-2 text-right">จัดการ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400 font-medium">
+                  <td colSpan={7} className="text-center py-10 text-slate-400 font-medium text-xs">
                     ไม่พบรายการประวัติการเช็คอินตามเงื่อนไขที่เลือก
                   </td>
                 </tr>
@@ -944,134 +1092,134 @@ export default function GPSCheckInManager({
                 filteredLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
                     {/* User */}
-                    <td className="py-3 px-3">
-                      <div className="flex items-center gap-2">
+                    <td className="py-2.5 px-2">
+                      <div className="flex items-center gap-1.5">
                         {log.userPhoto ? (
-                          <img src={log.userPhoto} alt={log.userName} className="w-7 h-7 rounded-lg object-cover border border-slate-200 shrink-0" />
+                          <img src={log.userPhoto} alt={log.userName} className="w-6 h-6 rounded-lg object-cover border border-slate-200 shrink-0" />
                         ) : (
-                          <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs shrink-0">
+                          <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-[10px] shrink-0">
                             {log.userName.charAt(0)}
                           </div>
                         )}
-                        <div>
-                          <p className="font-bold text-slate-800">{log.userName}</p>
-                          <p className="text-[10px] text-slate-400">{log.userEmail}</p>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-800 text-[11.5px] truncate max-w-[110px]" title={log.userName}>{log.userName}</p>
+                          <p className="text-[9.5px] text-slate-400 truncate max-w-[110px]">{log.userEmail}</p>
                         </div>
                       </div>
                     </td>
 
                     {/* Task Title */}
-                    <td className="py-3 px-3">
-                      <p className="font-bold text-slate-800 max-w-[200px] truncate" title={log.taskTitle}>
+                    <td className="py-2.5 px-2">
+                      <p className="font-bold text-slate-800 text-[11.5px] max-w-[150px] lg:max-w-[180px] truncate" title={log.taskTitle}>
                         {log.taskTitle}
                       </p>
-                      <p className="text-[10px] text-slate-500 truncate max-w-[200px]">
+                      <p className="text-[9.5px] text-slate-500 truncate max-w-[150px] lg:max-w-[180px]">
                         {log.equipment || log.departmentOrCompany || '-'}
                       </p>
                     </td>
 
                     {/* Check In Time & Geofence */}
-                    <td className="py-3 px-3 whitespace-nowrap">
-                      <p className="font-semibold text-slate-800">
+                    <td className="py-2.5 px-2 whitespace-nowrap">
+                      <p className="font-semibold text-slate-800 text-[11.5px]">
                         {new Date(log.checkInTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                       </p>
-                      <p className="text-[10px] text-slate-400">
+                      <p className="text-[9.5px] text-slate-400">
                         {new Date(log.checkInTime).toLocaleDateString('th-TH')}
                       </p>
                       {log.inGeofenceCheckIn !== undefined && (
-                        <span className={`inline-block text-[9px] font-bold px-1.5 py-0.2 rounded mt-0.5 ${
+                        <span className={`inline-block text-[8.5px] font-bold px-1 py-0.2 rounded mt-0.5 ${
                           log.inGeofenceCheckIn ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                         }`}>
-                          {log.inGeofenceCheckIn ? '✓ ในระยะ Geofence' : 'นอกระยะ'}
+                          {log.inGeofenceCheckIn ? '✓ ในระยะ' : 'นอกระยะ'}
                         </span>
                       )}
                     </td>
 
                     {/* Check Out Time */}
-                    <td className="py-3 px-3 whitespace-nowrap">
+                    <td className="py-2.5 px-2 whitespace-nowrap">
                       {log.checkOutTime ? (
                         <div>
-                          <p className="font-semibold text-slate-800">
+                          <p className="font-semibold text-slate-800 text-[11.5px]">
                             {new Date(log.checkOutTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                           </p>
-                          <p className="text-[10px] text-slate-400">
+                          <p className="text-[9.5px] text-slate-400">
                             {new Date(log.checkOutTime).toLocaleDateString('th-TH')}
                           </p>
                         </div>
                       ) : (
-                        <span className="text-slate-400 text-[11px] italic">-</span>
+                        <span className="text-slate-400 text-[10.5px] italic">-</span>
                       )}
                     </td>
 
                     {/* Work Duration */}
-                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                    <td className="py-2.5 px-2 text-center whitespace-nowrap">
                       {log.workDurationMinutes ? (
-                        <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
+                        <span className="font-mono text-[10.5px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded-md">
                           {Math.floor(log.workDurationMinutes / 60)} ชม. {log.workDurationMinutes % 60} นาที
                         </span>
                       ) : (
-                        <span className="text-slate-400 text-[11px]">-</span>
+                        <span className="text-slate-400 text-[10.5px]">-</span>
                       )}
                     </td>
 
                     {/* Status */}
-                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                    <td className="py-2.5 px-2 text-center whitespace-nowrap">
                       {log.status === 'Checked-In' ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                        <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                          กำลังปฏิบัติงาน
+                          กำลังทำ
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg">
-                          <CheckCircle2 size={12} className="text-emerald-600" />
-                          เสร็จสิ้นงาน
+                        <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg">
+                          <CheckCircle2 size={11} className="text-emerald-600" />
+                          เสร็จสิ้น
                         </span>
                       )}
                     </td>
 
                     {/* Action */}
-                    <td className="py-3 px-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
+                    <td className="py-2.5 px-2 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1">
                         {log.status === 'Checked-In' && (log.userId === user?.uid || userRole === 'admin') && (
                           <button
                             onClick={() => setShowCheckOutModal(true)}
-                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                            className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-md transition-colors cursor-pointer inline-flex items-center gap-1 shadow-xs"
                             title="เช็คเอาท์"
                           >
-                            <LogOut size={13} />
+                            <LogOut size={12} />
                             <span>เช็คเอาท์</span>
                           </button>
                         )}
                         <button
                           onClick={() => setSelectedLog(log)}
-                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1"
+                          className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] rounded-md transition-colors cursor-pointer inline-flex items-center gap-1"
                           title="ดูรายละเอียด"
                         >
-                          <Eye size={13} />
-                          <span className="hidden sm:inline">รายละเอียด</span>
+                          <Eye size={12} />
+                          <span className="hidden xl:inline">รายละเอียด</span>
                         </button>
                         {userRole !== 'viewer' && (
                           <>
                             <button
                               onClick={() => handleOpenEditModal(log)}
-                              className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-xs rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1 border border-amber-200/80"
+                              className="px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-[11px] rounded-md transition-colors cursor-pointer inline-flex items-center gap-1 border border-amber-200/80"
                               title="แก้ไขข้อมูล"
                             >
-                              <Edit3 size={13} />
-                              <span className="hidden md:inline">แก้ไข</span>
+                              <Edit3 size={12} />
+                              <span className="hidden xl:inline">แก้ไข</span>
                             </button>
                             <button
                               onClick={() => handleDeleteLog(log.id)}
                               disabled={deletingLogId === log.id}
-                              className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1 border border-rose-200/80 disabled:opacity-50"
+                              className="px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[11px] rounded-md transition-colors cursor-pointer inline-flex items-center gap-1 border border-rose-200/80 disabled:opacity-50"
                               title="ลบรายการ"
                             >
                               {deletingLogId === log.id ? (
-                                <RefreshCw size={13} className="animate-spin" />
+                                <RefreshCw size={12} className="animate-spin" />
                               ) : (
-                                <Trash2 size={13} />
+                                <Trash2 size={12} />
                               )}
-                              <span className="hidden md:inline">ลบ</span>
+                              <span className="hidden xl:inline">ลบ</span>
                             </button>
                           </>
                         )}
@@ -1083,6 +1231,144 @@ export default function GPSCheckInManager({
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Card View */}
+        <div className="block md:hidden divide-y divide-slate-100">
+          {filteredLogs.length === 0 ? (
+            <div className="py-10 text-center text-slate-400 text-xs">
+              ไม่พบรายการประวัติการเช็คอินตามเงื่อนไขที่เลือก
+            </div>
+          ) : (
+            filteredLogs.map((log) => (
+              <div key={log.id} className="p-3.5 bg-white hover:bg-slate-50/60 transition-colors space-y-2.5">
+                {/* User Info & Status Badge */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {log.userPhoto ? (
+                      <img src={log.userPhoto} alt={log.userName} className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs shrink-0">
+                        {log.userName.charAt(0)}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-bold text-xs text-slate-800 truncate">{log.userName}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{log.userEmail}</p>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0">
+                    {log.status === 'Checked-In' ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        กำลังทำงาน
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">
+                        <CheckCircle2 size={11} className="text-emerald-600" />
+                        เสร็จสิ้น
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Task Title & Equipment */}
+                <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/60 space-y-0.5">
+                  <p className="font-bold text-xs text-slate-800 break-words">{log.taskTitle}</p>
+                  {(log.equipment || log.departmentOrCompany) && (
+                    <p className="text-[10.5px] text-slate-500 truncate">
+                      {log.equipment ? `อุปกรณ์: ${log.equipment}` : log.departmentOrCompany}
+                    </p>
+                  )}
+                </div>
+
+                {/* Times & Geofence */}
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="bg-emerald-50/60 p-2 rounded-lg border border-emerald-100/80">
+                    <span className="text-[10px] text-emerald-700 font-bold block mb-0.5">📍 เช็คอิน</span>
+                    <span className="font-bold text-slate-800 block">
+                      {new Date(log.checkInTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
+                    </span>
+                    <span className="text-[9.5px] text-slate-500 block">
+                      {new Date(log.checkInTime).toLocaleDateString('th-TH')}
+                    </span>
+                    {log.inGeofenceCheckIn !== undefined && (
+                      <span className={`inline-block text-[9px] font-bold px-1.5 py-0.2 rounded mt-1 ${
+                        log.inGeofenceCheckIn ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {log.inGeofenceCheckIn ? '✓ ใน Geofence' : '⚠️ นอก Geofence'}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="bg-slate-50 p-2 rounded-lg border border-slate-200/60">
+                    <span className="text-[10px] text-slate-500 font-bold block mb-0.5">🏁 เช็คเอาท์</span>
+                    {log.checkOutTime ? (
+                      <>
+                        <span className="font-bold text-slate-800 block">
+                          {new Date(log.checkOutTime).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
+                        </span>
+                        <span className="text-[9.5px] text-slate-500 block">
+                          {new Date(log.checkOutTime).toLocaleDateString('th-TH')}
+                        </span>
+                        {log.workDurationMinutes ? (
+                          <span className="text-[9.5px] font-mono font-bold text-slate-600 block mt-1">
+                            ⏱️ {Math.floor(log.workDurationMinutes / 60)} ชม. {log.workDurationMinutes % 60} น.
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="text-slate-400 text-xs italic block mt-1">ยังไม่เช็คเอาท์</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-slate-100">
+                  {log.status === 'Checked-In' && (log.userId === user?.uid || userRole === 'admin') && (
+                    <button
+                      onClick={() => setShowCheckOutModal(true)}
+                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                    >
+                      <LogOut size={13} />
+                      <span>เช็คเอาท์</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setSelectedLog(log)}
+                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1"
+                  >
+                    <Eye size={13} />
+                    <span>รายละเอียด</span>
+                  </button>
+                  {userRole !== 'viewer' && (
+                    <>
+                      <button
+                        onClick={() => handleOpenEditModal(log)}
+                        className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-xs rounded-lg transition-colors cursor-pointer border border-amber-200"
+                      >
+                        <Edit3 size={13} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteLog(log.id)}
+                        disabled={deletingLogId === log.id}
+                        className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-lg transition-colors cursor-pointer border border-rose-200 disabled:opacity-50"
+                      >
+                        {deletingLogId === log.id ? (
+                          <RefreshCw size={13} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={13} />
+                        )}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+          </div>
+        )}
       </div>
 
       {/* Modal: Check-Out Popup */}
